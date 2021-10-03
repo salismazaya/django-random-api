@@ -25,9 +25,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-di=3=ne%z7905&bwgxyr&0@s=2#w!m3r4e2e-l#gxt2ce*2ut1'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'salism3.herokuapp.com']
+ALLOWED_HOSTS = ['127.0.0.1', '0.0.0.0']
 
 
 # Application definition
@@ -85,6 +85,16 @@ DATABASES = {
     }
 }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'djongo',
+#         'NAME': 'database_name',
+#         'CLIENT': {
+#            'host': 'database_uri',
+#         }
+#     }
+# }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -132,3 +142,5 @@ STATIC_ROOT = os.path.join(STATICFILES_DIRS[0], 'staticfiles')
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = 'login'

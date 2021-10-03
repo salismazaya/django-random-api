@@ -8,25 +8,14 @@
 <div class="container">
     <span>Your API Key:</span><br>
     <input type="text" class="form-control mb-2" id="api-key" placeholder="{{customer.api_key}}" readonly>
-    <button class="btn btn-primary" id="change-api-key">Change</button>
-</div>
-{% endblock %}
 
-{% block script %}
-<script>
-    $('#change-api-key').click(() => {
-        const api_key = $('#api-key').attr('placeholder');
-        $.ajax({
-            type: 'PUT',
-            url: '{% url "api-change-api-key" %}',
-            data: JSON.stringify({
-                'api-key': api_key
-            }),
-            success: (data) => {
-                data = JSON.parse(data);
-                $('#api-key').attr('placeholder', data.new_api_key);
-            }
-        });
-    });
-</script>
+    <div class="card mt-3">
+        <div class="card-body">
+            <span>Total requests: {{total_requests}}</span><br>
+            <span>Total requests today: {{total_requests_today}}</span><br>
+            <span>Total requests yesterday: {{total_requests_yesterday}}</span>
+        </div>
+        <img src="{{image}}">
+    </div>
+</div>
 {% endblock %}
