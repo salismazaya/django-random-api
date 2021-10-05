@@ -20,7 +20,12 @@ def get_total_days_of_month(datetime):
     month = int(datetime.strftime('%m'))
     year = int(datetime.strftime('%Y'))
     total_days = TOTAL_DAYS_OF_MONTH[month]
-    if month == 2 and year % 4 == 0 and year % 100 == 0 and year % 400 == 0:
-        total_days += 1
+    
+    if month == 2 and year % 4 == 0:
+       if year % 100 == 0:
+           if year % 400 = 0:
+               total_days += 1
+       else:
+          total_days += 1
     
     return total_days
