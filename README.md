@@ -9,6 +9,7 @@ url: https://salisganteng.pythonanywhere.com/api/change-api-key
 
 mandatory parameter:
 - api-key
+- password (current password)
 ```
 
 ### change password

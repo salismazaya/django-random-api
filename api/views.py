@@ -12,6 +12,15 @@ import re, json, base64, requests as r, module
 @api_key_required
 def change_api_key(request: WSGIRequest):
 	res = {}
+	param = getData(request)
+
+	if not param.get('password'):
+		return error('no password', 400)
+
+	user: User = request.customer.user
+	if not user.check_password(param.get('password')):
+		return error('wrong password', 401)
+
 	new_api_key = get_random_string()
 	request.customer.api_key = new_api_key
 	request.customer.save()
