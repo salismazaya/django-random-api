@@ -1,12 +1,11 @@
+from django_random_api.settings import IMGBB_TOKEN
 from io import BytesIO
 from module import text2gif
 import requests as r, base64
 
-KEY = "93e921c4070e7de0b7c5a61e0053d67f"
-
 def uploadImage(img, expiration = 60):
 	data = {}
-	data["key"] = KEY
+	data["key"] = IMGBB_TOKEN
 	if expiration > 0:
 		data["expiration"] = expiration
 		

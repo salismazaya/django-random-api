@@ -144,3 +144,6 @@ STATIC_ROOT = os.path.join(STATICFILES_DIRS[0], 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = 'login'
+
+
+IMGBB_TOKEN = os.environ.get('IMGBB_TOKEN')

@@ -1,6 +1,3 @@
-from django.utils.timezone import deactivate
-
-
 TOTAL_DAYS_OF_MONTH = {
     1: 31,
     2: 28,
@@ -23,7 +20,7 @@ def get_total_days_of_month(datetime):
     
     if month == 2 and year % 4 == 0:
        if year % 100 == 0:
-           if year % 400 = 0:
+           if year % 400 == 0:
                total_days += 1
        else:
           total_days += 1
