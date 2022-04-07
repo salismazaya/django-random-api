@@ -1,4 +1,10 @@
 __pycache__
+node_modules
+package-lock.json
 temp
 staticfiles
 db.sqlite3
+Env
+tailwind.css
+.env.development
+tes.py

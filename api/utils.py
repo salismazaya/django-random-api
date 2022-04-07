@@ -10,16 +10,16 @@ def getData(request: WSGIRequest):
     if request.is_ajax:
         try:
             data = json.loads(request.body.decode())
-            param.update(data)
         except:
-            pass
+            data = dict([x.split('=') for x in request.body.decode().split('&')])
+        param.update(data)
+
 
     return param
 
 
 def error(msg, status):
     res = {}
-    res['message'] = msg
-    res['success'] = False
+    res['detail'] = msg
     
     return HttpResponse(json.dumps(res), status = status)

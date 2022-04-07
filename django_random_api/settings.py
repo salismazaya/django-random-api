@@ -11,8 +11,9 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 from pathlib import Path
-import os
+import os, redis, pymysql, dj_database_url
 
+pymysql.install_as_MySQLdb()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,7 +29,8 @@ SECRET_KEY = 'django-insecure-di=3=ne%z7905&bwgxyr&0@s=2#w!m3r4e2e-l#gxt2ce*2ut1
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['127.0.0.1', '0.0.0.0']
-ALLOWED_HOSTS += os.environ.get('ALLOWED_HOSTS').split(',')
+if os.environ.get('ALLOWED_HOSTS'):
+    ALLOWED_HOSTS += os.environ.get('ALLOWED_HOSTS').split(',')
 
 # Application definition
 
@@ -44,6 +46,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -51,7 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'api.middlewares.visitor'
+    'api.middlewares.AuthInsertVistorErrorHandlerMiddleware',
 ]
 
 ROOT_URLCONF = 'django_random_api.urls'
@@ -67,6 +70,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'main.context_processors.data'
             ],
         },
     },
@@ -85,15 +89,8 @@ DATABASES = {
     }
 }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'djongo',
-#         'NAME': 'database_name',
-#         'CLIENT': {
-#            'host': 'database_uri',
-#         }
-#     }
-# }
+if os.environ.get('DATABASE_URL'):
+    DATABASES['default'] = dj_database_url.parse(os.environ.get('DATABASE_URL'))
 
 
 # Password validation
@@ -136,14 +133,25 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static')
 ]
-STATIC_ROOT = os.path.join(STATICFILES_DIRS[0], 'staticfiles')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+if os.environ.get('HEROKU_APP_ID'):
+    r = redis.from_url(os.environ.get('REDIS_URL'))
+    if os.environ.get('SOURCE_VERSION'):
+        HEROKU_BUILD_ID = os.environ.get('SOURCE_VERSION')[:8]
+        STATIC_ROOT = '/tmp/build_{}/staticfiles'.format(HEROKU_BUILD_ID)
+        r.set('STATIC_ROOT', STATIC_ROOT)
+    else:
+        STATIC_ROOT = r.get('STATIC_ROOT').decode()
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 LOGIN_URL = 'login'
 
-
-IMGBB_TOKEN = os.environ.get('IMGBB_TOKEN')
+G_CAPCTHA_SECRET_KEY = os.environ.get('G_CAPCTHA_SECRET_KEY')
+G_CAPCTHA_PUBLIC_KEY = os.environ.get('G_CAPCTHA_PUBLIC_KEY')

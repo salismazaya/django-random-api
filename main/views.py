@@ -7,14 +7,65 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
 from django.contrib.humanize.templatetags import humanize
-from django.utils.crypto import get_random_string
 from django.utils import timezone
+from django.db.models import Avg
+from django.conf import settings
 from main.forms import LoginForm, RegisterForm
-from main.models import Customer, Visitor
+from api.models import Visitor
+from api.urls import endpoints
+from api.utils import getData
 from main.utils import get_total_days_of_month
 from io import BytesIO
+from main import signal
+from main.models import Token
 import matplotlib.pyplot as plt
-import base64
+import base64, requests
+
+plt.rcParams["font.family"] = "monospace"
+
+
+class IndexView(View):
+    def get(self, request: WSGIRequest):
+        total_requests = Visitor.objects.count()
+        total_requests_success = Visitor.objects.filter(success = True).count()
+        total_requests_failed = Visitor.objects.filter(success = False).count()
+
+        if total_requests:
+            avg_proccess_time = round(Visitor.objects.aggregate(Avg('proccess_time'))['proccess_time__avg'], 4)
+            total_requests_endpoint = {}
+            for endpoint in endpoints:
+                total = Visitor.objects.filter(endpoint = endpoint).count()
+                total_requests_endpoint[endpoint] = total
+            
+            total_requests_endpoint = sorted(total_requests_endpoint.items(), key = lambda x: x[1], reverse = True)
+            total_requests_endpoint = dict([x for x in total_requests_endpoint if x[1] > 0][:4])
+            total_requests_endpoint_int = sum(total_requests_endpoint.values())
+            if (total_requests - total_requests_endpoint_int) > 0:
+                total_requests_endpoint['other'] = total_requests - total_requests_endpoint_int
+
+            fig = plt.figure()
+            ax = fig.add_axes([0,0,1,1])
+            ax.pie(total_requests_endpoint.values(), labels = total_requests_endpoint.keys(), autopct = '%1.2f%%')
+
+            most_popular_endpoints_image = BytesIO()
+            fig.savefig(most_popular_endpoints_image, format = 'png')
+            most_popular_endpoints_image.seek(0)
+
+            most_popular_endpoints_b64image = base64.b64encode(most_popular_endpoints_image.getvalue()).decode()
+            most_popular_endpoints_image_uri = f'data:image/png;base64,{most_popular_endpoints_b64image}'
+        else:
+            avg_proccess_time = 0
+            most_popular_endpoints_image_uri = None
+
+        context = {
+            'avg_proccess_time': avg_proccess_time,
+            'total_requests': total_requests,
+            'total_requests_success': total_requests_success,
+            'total_requests_failed': total_requests_failed,
+            'most_popular_endpoints_image_uri': most_popular_endpoints_image_uri
+        }
+        return render(request, 'main/index.html', context)
+
 
 class LoginView(View):
     def get(self, request: WSGIRequest):
@@ -30,11 +81,25 @@ class LoginView(View):
         form = LoginForm(request.POST)
         if not form.is_valid():
             return HttpResponseBadRequest('Bad Request')
+
+        data = getData(request)
+        c_response = data.get('g-recaptcha-response')
+
+        result_check_capctha = requests.post('https://www.google.com/recaptcha/api/siteverify', data = {
+            'secret': settings.G_CAPCTHA_SECRET_KEY,
+            'response': c_response
+        }).json()
+        if not result_check_capctha.get('success'):
+            context = {
+                'error_msg': 'Captcha not valid!'
+            }
+            return render(request, 'main/login.html', context)
+
         
         user = authenticate(username = form.cleaned_data['username'], password = form.cleaned_data['password'])
         if not user:
             context = {
-                'error_msg': 'Username / password salah!'
+                'error_msg': 'Wrong username / password!'
             }
             return render(request, 'main/login.html', context)
         
@@ -70,6 +135,19 @@ class RegisterView(View):
             }
             return render(request, 'main/register.html', context)
 
+        data = getData(request)
+        c_response = data.get('g-recaptcha-response')
+
+        result_check_capctha = requests.post('https://www.google.com/recaptcha/api/siteverify', data = {
+            'secret': settings.G_CAPCTHA_SECRET_KEY,
+            'response': c_response
+        }).json()
+        if not result_check_capctha.get('success'):
+            context = {
+                'error_msg': 'Captcha not valid!'
+            }
+            return render(request, 'main/register.html', context)
+
         if User.objects.filter(username = form.cleaned_data['username'].lower()).first():
             context = {
                 'error_msg': 'Username sudah ada'
@@ -89,12 +167,6 @@ class RegisterView(View):
         )
         user.save()
 
-        customer = Customer(
-            user = user,
-            api_key = get_random_string(),
-        )
-        customer.save()
-
         context = {
             'success_msg': 'Daftar berhasil! silahkan login'
         }
@@ -105,15 +177,16 @@ class RegisterView(View):
 @method_decorator(login_required, name = 'dispatch')
 class DashboardView(View):
     def get(self, request: WSGIRequest):
-        customer = Customer.objects.get(user__id = request.user.id)
-        visitors = Visitor.objects.filter(customer__id = customer.id).all()
+        # total_requests = Visitor.objects.filter(user__id = request.user.id).count()
+        visitors = Visitor.objects.filter(user__id = request.user.id).all()
+        token_obj = Token.objects.get(user__id = request.user.id)
+        token = token_obj.token
         total_requests = len(visitors)
         total_requests_today = 0
         total_requests_yesterday = 0
         now = timezone.now()
         month_year_now = now.strftime('%m%Y')
         total_days = get_total_days_of_month(now)
-        print(total_days)
         days = [i + 1 for i in range(total_days)]
         total_requests_per_day = [0] * total_days
 
@@ -130,21 +203,56 @@ class DashboardView(View):
                 total_requests_yesterday += 1
 
 
-        fig, ax = plt.subplots()
-        ax.plot(days, total_requests_per_day)
-        ax.set(xlabel='Date by Day', ylabel='Total Request', title = 'API Request')
-        image = BytesIO()
-        fig.savefig(image, format = 'png')
-        image.seek(0)
-        image_base64 = base64.b64encode(image.getvalue()).decode()
-        image_data = f'data:image/png;base64,{image_base64}'
+        # fig, ax = plt.subplots()
+        # ax.plot(days, total_requests_per_day)
+        # ax.set(xlabel='Date by Day', ylabel='Total Request', title = 'API Request')
+        # image = BytesIO()
+        # fig.savefig(image, format = 'png')
+        # image.seek(0)
+        # image_base64 = base64.b64encode(image.getvalue()).decode()
+        # image_data = f'data:image/png;base64,{image_base64}'
+
+        total_requests_success = Visitor.objects.filter(user__id = request.user.id, success = True).count()
+        total_requests_failed = Visitor.objects.filter(user__id = request.user.id, success = False).count()
+
+        if total_requests:
+            avg_proccess_time = round(Visitor.objects.filter(user__id = request.user.id).aggregate(Avg('proccess_time'))['proccess_time__avg'], 4)
+            total_requests_endpoint = {}
+            for endpoint in endpoints:
+                total = Visitor.objects.filter(user__id = request.user.id, endpoint = endpoint).count()
+                total_requests_endpoint[endpoint] = total
+        
+            
+            total_requests_endpoint = sorted(total_requests_endpoint.items(), key = lambda x: x[1], reverse = True)
+            total_requests_endpoint = dict([x for x in total_requests_endpoint if x[1] > 0][:4])
+            total_requests_endpoint_int = sum(total_requests_endpoint.values())
+            if total_requests - total_requests_endpoint_int > 0:
+                total_requests_endpoint['other'] = total_requests - total_requests_endpoint_int
+
+            fig = plt.figure()
+            ax = fig.add_axes([0,0,1,1])
+            ax.pie(total_requests_endpoint.values(), labels = total_requests_endpoint.keys(), autopct = '%1.2f%%')
+
+            most_popular_endpoints_image = BytesIO()
+            fig.savefig(most_popular_endpoints_image, format = 'png')
+            most_popular_endpoints_image.seek(0)
+
+            most_popular_endpoints_b64image = base64.b64encode(most_popular_endpoints_image.getvalue()).decode()
+            most_popular_endpoints_image_uri = f'data:image/png;base64,{most_popular_endpoints_b64image}'
+        else:
+            avg_proccess_time = 0
+            most_popular_endpoints_image_uri = None
 
         context = {
-            'customer': customer,
+            'token': token,
+            'user': request.user,
             'total_requests': total_requests,
             'total_requests_today': total_requests_today,
             'total_requests_yesterday': total_requests_yesterday,
-            'image': image_data,
+            'most_popular_endpoints_image_uri': most_popular_endpoints_image_uri,
+            'avg_proccess_time': avg_proccess_time,
+            'total_requests_success': total_requests_success,
+            'total_requests_failed': total_requests_failed
         }
         return render(request, 'main/dashboard.html', context)
 

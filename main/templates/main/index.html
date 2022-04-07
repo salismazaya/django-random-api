@@ -1,12 +1,44 @@
 {% extends "main/layouts/base.html" %}
 
 {% block content %}
-<div class="container">
-    <div class="mt-5">
-        <center>
-            <h1>Free API With Random Features</h1>
-            <a href="https://github.com/salismazaya/django-random-api" target="_blank" class="btn btn-primary">Documentation</a>
-        </center>
+<div class="text-center mt-10 md:text-2xl">
+    <p class="text-gray-900">Free API With Random Features</p>
+    <p class="text-gray-900">Made without <span class="text-red-600">♥</span> by salismazaya and my friends</p>
+    <div class="my-3 cursor-pointer">
+        <a href="#" class="uppercase bg-green-500 md:text-xl p-2 rounded">get started</a>
     </div>
+    <div class="flex justify-center mt-5">
+        <div class="mx-2">
+            <a href="https://github.com/salismazaya/django-random-api" target="_blank">
+                <img src="/static/img/github.png" alt="Github Icon" width="32" height="32">
+            </a>
+        </div>
+        <div class="mx-2">
+            <a href="https://fb.me/salismazaya" target="_blank">
+                <img src="/static/img/facebook.png" alt="Facebook Icon" width="32" height="32">
+            </a>
+        </div>
+        <div class="mx-2">
+            <a href="https://t.me/salismiftah" target="_blank">
+                <img src="/static/img/telegram.png" alt="Telegram Icon" width="32" height="32">
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="mt-12 text-center">
+    <p class="underline">Public Statictics</p>
+    {% if avg_proccess_time > 0 %}
+    <p>Average Proccess Time: <span class="text-yellow-600">{{ avg_proccess_time }} second</span></p>
+    {% endif %}
+    <p>Total Requests: <span class="text-green-600">{{ total_requests }}</span></p>
+    <p>Total Requests Success: <span class="text-green-600">{{ total_requests_success }}</span></p>
+    <p>Total Requests Failed: <span class="text-red-600">{{ total_requests_failed }}</span></p>
+    {% if most_popular_endpoints_image_uri %}
+    <div class="mt-14">
+        <p>Endpoint with the Most Requests</p>
+        <img src="{{ most_popular_endpoints_image_uri }}" class="mx-auto">
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

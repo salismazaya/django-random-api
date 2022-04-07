@@ -1,0 +1,32 @@
+{
+  "name": "django-random-api",
+  "version": "2.0.0",
+  "description": "Free API With Random Features",
+  "scripts": {
+    "start": "gunicorn django_random_api.wsgi",
+    "dev": "python manage.py runserver",
+    "mg": "python manage.py migrate",
+    "mmg": "python manage.py makemigrations",
+    "shell": "python manage.py shell",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tailwindcss -i ./style.css -o ./static/css/tailwind.css && python manage.py collectstatic --noinput"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/salismazaya/django-random-api.git"
+  },
+  "author": "Salis Mazaya",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/salismazaya/django-random-api/issues"
+  },
+  "homepage": "https://github.com/salismazaya/django-random-api#readme",
+  "devDependencies": {
+    "autoprefixer": "10.4.2",
+    "postcss": "8.4.6",
+    "tailwindcss": "2.2.19"
+  },
+  "engines": {
+    "node": "16.x"
+  }
+}

@@ -11,6 +11,6 @@ def text2sound(text, languageCode, convertToOpus = True):
 		audioOpus = BytesIO()
 		audio.seek(0)
 		AudioSegment.from_file(audio).export(audioOpus, format = "opus")
-		return audioOpus
+		return audioOpus.getvalue()
 	
-	return audio
+	return audio.getvalue()

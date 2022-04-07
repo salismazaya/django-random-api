@@ -1,40 +1,45 @@
 from django.http import HttpResponse
 from django.core.handlers.wsgi import WSGIRequest
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.crypto import get_random_string
 from django.contrib.auth.models import User
-from api.decorators import api_key_required, require_http_methods
 from api.utils import getData, error
-import re, json, base64, requests as r, module
-	
-@csrf_exempt
-@require_http_methods(['PUT'])
-@api_key_required
-def change_api_key(request: WSGIRequest):
+from ninja import NinjaAPI
+from main.models import Token
+from api.models import Visitor
+from api.schemas import ChangePasswordSchema, ChangePasswordSchemaOut, Text2ImgSchema, WriteSchema, ImageSchemaOut
+from ninja.security import HttpBearer
+from datetime import datetime
+from ipware import get_client_ip
+import re, json, base64, requests as r, module, hashlib, time, requests
+
+class AuthBearer(HttpBearer):
+    def authenticate(self, request, token):
+        return request.user
+
+api = NinjaAPI(
+	auth = AuthBearer(),
+	title = 'Random API',
+	version = '2.0.0'
+)
+
+@api.put('/change-token')
+def change_token(request: WSGIRequest):
 	res = {}
-	param = getData(request)
 
-	if not param.get('password'):
-		return error('no password', 400)
-
-	user: User = request.customer.user
-	if not user.check_password(param.get('password')):
-		return error('wrong password', 401)
-
-	new_api_key = get_random_string()
-	request.customer.api_key = new_api_key
-	request.customer.save()
+	new_token = hashlib.sha256(datetime.now().strftime("%m%d%Y%H%M%S%f" + str(request.user.id)).encode()).hexdigest()
+	token = Token.objects.get(
+		user__id = request.user.id
+	)
+	token.token = new_token
+	token.save()
 
 	res['message'] = 'Success!'
 	res['success'] = True
-	res['new_api_key'] = new_api_key
+	res['new_token'] = new_token
 	return HttpResponse(json.dumps(res))
 
-
-@csrf_exempt
-@require_http_methods(['PUT'])
-@api_key_required
-def change_password(request: WSGIRequest):
+@api.put('/change-password', response = {200: ChangePasswordSchemaOut})
+def change_password(request: WSGIRequest, data: ChangePasswordSchema):
 	res = {}
 	param = getData(request)
 	new_password = param.get('new-password')
@@ -59,10 +64,8 @@ def change_password(request: WSGIRequest):
 	return HttpResponse(json.dumps(res))
 
 
-@csrf_exempt
-@require_http_methods(['POST'])
-@api_key_required
-def write(request: WSGIRequest):
+@api.post('/write', response = {200: ImageSchemaOut})
+def write(request: WSGIRequest, data: WriteSchema):
     res = {}
     param = getData(request)
 
@@ -75,13 +78,13 @@ def write(request: WSGIRequest):
         status = 200
         res['message'] = 'Success!'
         res['success'] = True
-        res['images'] = list(map(lambda img: module.uploadImage(img, expiration = 60)['data']['url'], result))
-
+        res['base64_images'] = list(map(lambda img: module.convertImgToBase64(img), result))
+        res['format'] = 'jpg'
+    
     return HttpResponse(json.dumps(res), status = status)
 
-@csrf_exempt
-@api_key_required
-def text2img(request: WSGIRequest):
+@api.post('/text2img', response = {200: ImageSchemaOut})
+def text2img(request: WSGIRequest, data: Text2ImgSchema):
 	res = {}
 	param = getData(request)
 	
@@ -114,56 +117,18 @@ def text2img(request: WSGIRequest):
 		return error('outlineColor not valid', 400)
 	
 	img = module.text2img(param['text'], bgColor = bgColor, textColor = textColor, outlineColor = outlineColor)
-	url = module.uploadImage(img, expiration = 60)['data']['url']
+	# url = module.uploadImage(img, expiration = 60)['data']['url']
+	base64_image = module.convertImgToBase64(img)
 	
 	res['message'] = 'Success!'
 	res['success'] = True
-	res['image'] = url
+	res['base64_images'] = [base64_image]
+	res['format'] = 'png'
 	
 	return HttpResponse(json.dumps(res))
 
-@csrf_exempt
-@require_http_methods(['POST'])
-@api_key_required
-def remove_bg(request: WSGIRequest):
-	res = {}
-	param = getData(request)
-	
-	if not param.get('image'):
-		return error('no image', 400)
 
-	# if not re.match(r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$', param.get('image')):
-	if True:
-		try:
-			image_decoded = base64.b64decode(param.get('image'))
-		except:
-			return error('image not valid', 400)
-
-		if len(image_decoded) > 1048576:
-			return error('maximal file size 1mb', 400)
-	
-	# else:
-	# 	image_decoded = r.get(param.get('image')).content
-
-	# 	if len(image_decoded) > 1048576:
-	# 		return error('maximal file size 1mb', 400)
-
-	try:
-		image = module.remove_bg(image_decoded)
-		url = module.uploadImage(image, expiration = 60)['data']['url']
-	except:
-		return error('image not valid', 400)
-	
-	res['message'] = 'Success!'
-	res['success'] = True
-	res['image'] = url
-
-	return HttpResponse(json.dumps(res))
-
-
-@csrf_exempt
-@require_http_methods(['GET'])
-@api_key_required
+@api.get('/wikipedia')
 def wikipedia(request: WSGIRequest):
 	res = {}
 	param = getData(request)
@@ -182,30 +147,27 @@ def wikipedia(request: WSGIRequest):
 
 	return HttpResponse(json.dumps(res))
 
-@csrf_exempt
-@require_http_methods(['GET'])
-@api_key_required
+@api.get('/math')
 def math(request: WSGIRequest):
 	res = {}
 	img, answer = module.generateQuestion()
-	url = module.uploadImage(img)['data']['url']
+	base64_img = module.convertImgToBase64(img)
 
 	res['message'] = 'Success!'
 	res['success'] = True
-	res['image'] = url
+	res['base64_image'] = base64_img
+	res['format'] = 'jpg'
 	res['answer'] = int(answer)
 	return HttpResponse(json.dumps(res))
 
 
-@csrf_exempt
-@require_http_methods(['POST'])
-@api_key_required
+@api.post('/text2gif')
 def text2gif(request: WSGIRequest):
 	res = {}
 	param = getData(request)
 	
 	if not param.get('text'):
-		raise error('no text!', 400)
+		return error('no text!', 400)
 	
 	bgColor = param.get('bgColor')
 	if not bgColor:
@@ -216,11 +178,47 @@ def text2gif(request: WSGIRequest):
 		return error('bgColor not valid', 400)
 
 	gif = module.text2gif(param['text'], bgColor = bgColor)
-	url = module.uploadImage(gif, expiration = 60)['data']['url']
+	base64_gif = module.convertImgToBase64(gif)
 	
 	res['message'] = 'Success!'
 	res['success'] = True
-	res['image'] = url
+	res['base64_gif'] = base64_gif
+	res['format'] = 'gif'
 
 	return HttpResponse(json.dumps(res))
+
+
+@api.post('/text2sound')
+def text2sound(request: WSGIRequest):
+	res = {}
+	data = getData(request)
 	
+	if not data.get("text"):
+		raise error("Mohon masukan text!", 400)
+	if not data.get("languageCode"):
+		return error("Mohon masukan languageCode", 400)
+	
+	languageCode = data["languageCode"]
+	
+	try:
+		result = module.text2sound(data["text"][:150], languageCode = languageCode)
+	except ValueError:
+		return error(f"kode bahasa '{languageCode}' tidak ditemukan", 400)
+
+	base64_audio = base64.b64encode(result).decode()
+		
+	# def generate():
+	# 	result.seek(0)
+	# 	data = result.read(1024)
+		
+	# 	while data:
+	# 		yield data
+	# 		data = result.read(1024)
+
+	
+	res['message'] = 'Success!'
+	res['success'] = True
+	res['base64_audio'] = base64_audio
+	res['format'] = 'opus'
+	
+	return HttpResponse(json.dumps(res))
