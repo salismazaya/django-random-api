@@ -27,8 +27,8 @@ plt.rcParams["font.family"] = "monospace"
 class IndexView(View):
     def get(self, request: WSGIRequest):
         total_requests = Visitor.objects.count()
-        total_requests_success = Visitor.objects.filter(success = True).count()
-        total_requests_failed = Visitor.objects.filter(success = False).count()
+        total_requests_success = Visitor.objects.filter(success__in = [True]).count()
+        total_requests_failed = Visitor.objects.filter(success__in = [False]).count()
 
         if total_requests:
             avg_proccess_time = round(Visitor.objects.aggregate(Avg('proccess_time'))['proccess_time__avg'], 4)
@@ -212,8 +212,8 @@ class DashboardView(View):
         # image_base64 = base64.b64encode(image.getvalue()).decode()
         # image_data = f'data:image/png;base64,{image_base64}'
 
-        total_requests_success = Visitor.objects.filter(user__id = request.user.id, success = True).count()
-        total_requests_failed = Visitor.objects.filter(user__id = request.user.id, success = False).count()
+        total_requests_success = Visitor.objects.filter(user__id = request.user.id, success__in = [True]).count()
+        total_requests_failed = Visitor.objects.filter(user__id = request.user.id, success__in = [False]).count()
 
         if total_requests:
             avg_proccess_time = round(Visitor.objects.filter(user__id = request.user.id).aggregate(Avg('proccess_time'))['proccess_time__avg'], 4)

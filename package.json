@@ -8,6 +8,7 @@
     "mg": "python manage.py migrate",
     "mmg": "python manage.py makemigrations",
     "shell": "python manage.py shell",
+    "csu": "python manage.py createsuperuser",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tailwindcss -i ./style.css -o ./static/css/tailwind.css && python manage.py collectstatic --noinput"
   },

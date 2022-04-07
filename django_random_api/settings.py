@@ -93,6 +93,19 @@ if os.environ.get('DATABASE_URL'):
     DATABASES['default'] = dj_database_url.parse(os.environ.get('DATABASE_URL'))
 
 
+if os.environ.get('DATABASE_URI_MONGODB'):
+    from urllib.parse import urlparse
+    url_parsed = urlparse(os.environ.get('DATABASE_URI_MONGODB'))
+    DATABASES = {
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': url_parsed.path.replace('/', '', 1),
+            'CLIENT': {
+            'host': url_parsed.scheme + '://' + url_parsed.netloc,
+            }
+        }
+    }
+
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
 
