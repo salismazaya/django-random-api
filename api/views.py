@@ -6,7 +6,7 @@ from api.utils import getData, error
 from ninja import NinjaAPI
 from main.models import Token
 from api.models import Visitor
-from api.schemas import ChangePasswordSchema, ChangePasswordSchemaOut, Text2ImgSchema, WriteSchema, ImageSchemaOut
+from api.schemas import AudioSchemaOut, ChangePasswordSchema, ChangePasswordSchemaOut, MathSchemaOut, Text2GifSchema, Text2ImgSchema, Text2SoundSchema, WikipediaSchema, WikipediaSchemaOut, WriteSchema, ImageSchemaOut
 from ninja.security import HttpBearer
 from datetime import datetime
 from ipware import get_client_ip
@@ -128,8 +128,8 @@ def text2img(request: WSGIRequest, data: Text2ImgSchema):
 	return HttpResponse(json.dumps(res))
 
 
-@api.get('/wikipedia')
-def wikipedia(request: WSGIRequest):
+@api.get('/wikipedia', response = {200: WikipediaSchemaOut})
+def wikipedia(request: WSGIRequest, data: WikipediaSchema):
 	res = {}
 	param = getData(request)
 
@@ -147,7 +147,7 @@ def wikipedia(request: WSGIRequest):
 
 	return HttpResponse(json.dumps(res))
 
-@api.get('/math')
+@api.get('/math', response = {200: MathSchemaOut})
 def math(request: WSGIRequest):
 	res = {}
 	img, answer = module.generateQuestion()
@@ -155,14 +155,14 @@ def math(request: WSGIRequest):
 
 	res['message'] = 'Success!'
 	res['success'] = True
-	res['base64_image'] = base64_img
+	res['base64_images'] = [base64_img]
 	res['format'] = 'jpg'
 	res['answer'] = int(answer)
 	return HttpResponse(json.dumps(res))
 
 
-@api.post('/text2gif')
-def text2gif(request: WSGIRequest):
+@api.post('/text2gif', response = {200: ImageSchemaOut})
+def text2gif(request: WSGIRequest, data: Text2GifSchema):
 	res = {}
 	param = getData(request)
 	
@@ -182,14 +182,14 @@ def text2gif(request: WSGIRequest):
 	
 	res['message'] = 'Success!'
 	res['success'] = True
-	res['base64_gif'] = base64_gif
+	res['base64_images'] = [base64_gif]
 	res['format'] = 'gif'
 
 	return HttpResponse(json.dumps(res))
 
 
-@api.post('/text2sound')
-def text2sound(request: WSGIRequest):
+@api.post('/text2sound', response = {200: AudioSchemaOut})
+def text2sound(request: WSGIRequest, data: Text2SoundSchema):
 	res = {}
 	data = getData(request)
 	
@@ -218,7 +218,7 @@ def text2sound(request: WSGIRequest):
 	
 	res['message'] = 'Success!'
 	res['success'] = True
-	res['base64_audio'] = base64_audio
+	res['base64_audios'] = [base64_audio]
 	res['format'] = 'opus'
 	
 	return HttpResponse(json.dumps(res))

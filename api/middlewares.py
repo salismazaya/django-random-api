@@ -3,6 +3,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from main.models import Token
 from api.models import Visitor
+from api.urls import endpoints_pattern
 # from api.urls import endpoints
 from ipware import get_client_ip
 import json, time, requests, re
@@ -14,6 +15,11 @@ class AuthInsertVistorErrorHandlerMiddleware:
     def __call__(self, request: WSGIRequest):
         if not request.path.startswith('/api') or re.match(r'^/api/?(docs|openapi.json)?/?$', request.path):
             return self.get_response(request)
+
+        if not re.match(endpoints_pattern, request.path):
+            return HttpResponse(json.dumps({
+                'detail': '404 not found :('
+            }), status = 404)
 
         if not request.headers.get('Authorization') or not request.headers.get('Authorization').startswith('Bearer '):
             # return HttpResponse(json.dumps({
